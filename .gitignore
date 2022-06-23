@@ -137,4 +137,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-config.yaml
+config.yaml### Example user template template
+### Example user template
+
+# IntelliJ project files
+.idea
+*.iml
