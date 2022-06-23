@@ -7,7 +7,6 @@ app.config['MONGODB_SETTINGS'] = {
     'host': 'mongodb://localhost/CEACStateTracker',
     'connect': False,
 }
-app.debug = True
 db = MongoEngine(app)
 
 from app.route import scheduler
