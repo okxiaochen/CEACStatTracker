@@ -1,10 +1,10 @@
 debug: false
+domain: http://127.0.0.1:5000
 
 # Mongodb
 mongoDBUri: mongodb://localhost/CEACStateTracker
 
-# WeCom
-wecomCID:
-wecomAID:
-wecomSecret:
-defaultUID:
+# Email
+email_user:
+email_password:
+email_host: smtp.qq.com

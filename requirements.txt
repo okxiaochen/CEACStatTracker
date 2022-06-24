@@ -1,0 +1,11 @@
+beautifulsoup4==4.11.1
+Flask==2.1.2
+flask_apscheduler==1.12.4
+flask_mongoengine==1.0.0
+mongoengine==0.24.1
+numpy==1.23.0
+onnxruntime==1.11.1
+Pillow==9.1.1
+PyYAML==6.0
+requests==2.27.1
+Werkzeug==2.1.2
