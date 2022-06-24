@@ -143,3 +143,4 @@ config.yaml### Example user template template
 # IntelliJ project files
 .idea
 *.iml
+config.yaml

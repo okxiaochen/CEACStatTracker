@@ -1,0 +1,10 @@
+debug: false
+
+# Mongodb
+mongoDBUri: mongodb://localhost/CEACStateTracker
+
+# WeCom
+wecomCID:
+wecomAID:
+wecomSecret:
+defaultUID:

@@ -1,4 +1,7 @@
 import datetime
+import os
+
+import yaml
 
 EXTENT_DAYS = 120
 STAT_RESULT_CACHE = None
@@ -6,9 +9,13 @@ STAT_RESULT_CACHE_TIME = None
 HOST = "https://track.moyu.ac.cn/detail/"
 DEBUG = False
 
+
 def parse_date(date_string):
     return datetime.datetime.strptime(date_string, "%d-%b-%Y").date()
 
+
+_config_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "config.yaml")
+CONFIG = yaml.safe_load(open(_config_path))
 
 LocationList = [
     ("", "- SELECT ONE -"),

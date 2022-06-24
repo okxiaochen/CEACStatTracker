@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import json
 from typing import List
 import time
@@ -9,11 +10,10 @@ from flask.templating import render_template
 from werkzeug.utils import redirect
 from flask_apscheduler import APScheduler
 
-from app import const
-from app.const import parse_date, EXTENT_DAYS, STAT_RESULT_CACHE, STAT_RESULT_CACHE_TIME, LocationDict, LocationList
-from app.crawler import query_ceac_state, query_ceac_state_safe
-from app.mongodb import Case, Record
-from app.wechat import config as wx_config, check_wx_signature, xmltodict
+from tracker.const import parse_date, EXTENT_DAYS, STAT_RESULT_CACHE, STAT_RESULT_CACHE_TIME, LocationDict, LocationList, \
+    CONFIG
+from tracker.crawler import query_ceac_state, query_ceac_state_safe
+from tracker.mongodb import Case, Record
 
 mod = Blueprint("router", __name__, template_folder="templates")
 scheduler = APScheduler()
@@ -22,7 +22,7 @@ scheduler = APScheduler()
 @scheduler.task('cron', id='do_job_1', minute="32")
 def crontab_task():
     last_seem_expire = datetime.datetime.now() - datetime.timedelta(hours=3)
-    case_list: List[Case] = Case.objects(expire_date__gte=datetime.datetime.today(), last_seem__lte=last_seem_expire)
+    case_list: List[Case] = Case.objects(expire_date__gte=datetime.datetime.today(), last_seem__lte=last_seem_expire, )
     soup = None
     for case in case_list:
         result, soup = query_ceac_state_safe(case.location, case.case_no, soup)
@@ -37,7 +37,7 @@ def divide_chunks(l, n):
 
 @mod.route("/task")
 def crontab_task_debug():
-    if not const.DEBUG:
+    if not CONFIG["debug"]:
         return "disabled"
     crontab_task()
     return "ok"
@@ -45,7 +45,7 @@ def crontab_task_debug():
 
 @mod.route("/import", methods=["GET", "POST"])
 def import_case():
-    if not const.DEBUG:
+    if not CONFIG["debug"]:
         return "disabled"
     error_list = []
     if request.method == "POST":
@@ -107,21 +107,47 @@ def detail_page(case_id):
             case.delete()
             flash("Completely deleted this case, See you.", category="success")
             return redirect("/")
-        if act == "renew":
-            flash(f"Expire +{EXTENT_DAYS} days", category="success")
+        elif act == "renew":
+            flash(f"Expire +{EXTENT_DAYS} days from today", category="success")
             case.renew()
-        if act == "refresh":
+        elif act == "refresh":
             result, soup = query_ceac_state_safe(case.location, case.case_no)
             if isinstance(result, str):
                 flash(result, category="danger")
             else:
                 case.updateRecord(result)
+        elif act == "email":
+            email = request.form.get("email", "")
+            if not email or email == "":
+                flash("Wrong Email Address", category="danger")
+            else:
+                rst = case.bind(email)
+                if rst is not True:
+                    flash(rst, category="danger")
+                else:
+                    flash("Update successfully and sent a email to the address", category="success")
         interview_date = request.form.get("interview_date", None)
         if interview_date:
             case.interview_date = datetime.datetime.strptime(interview_date, "%Y-%m-%d")
         case.save()
     record_list = Record.objects(case=case).order_by('-status_date')
     return render_template("detail.html", case=case, record_list=record_list, location_str=LocationDict[case.location])
+
+
+@mod.route("/unsubscribe/<cache_id>", methods=["GET"])
+def unsubscribe(cache_id):
+    if "_" not in cache_id:
+        return "OK"
+    case_id, email_hash = cache_id.split("_")
+    case = Case.objects.get_or_404(id=case_id)
+    if not case or not case.push_channel:
+        return "OK"
+    case_email_hash = hashlib.md5(case.push_channel.encode('utf-8')).hexdigest()[:9]
+    if case_email_hash != email_hash:
+        return "OK"
+    case.push_channel = ""
+    case.save()
+    return "OK"
 
 
 @mod.route("/stat.js")
@@ -175,27 +201,3 @@ def stat_result():
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     return response
-
-
-@mod.route('/endpoint', methods=["GET", "POST"])
-def wechat_point():
-    if not check_wx_signature(
-            request.args.get("signature"),
-            request.args.get("timestamp"),
-            request.args.get("nonce"),
-            wx_config["serverToken"]):
-        return abort(500)
-    if request.method == "GET":
-        return request.args.get("echostr")
-
-    req = xmltodict(request.data)
-    EventKey = ""
-    if req["MsgType"] == "event" and req["Event"] == "subscribe" and "EventKey" in req and req["EventKey"]:
-        EventKey = req["EventKey"][8:]  # qrscene_
-    if req["MsgType"] == "event" and req["Event"] == "SCAN":
-        EventKey = req["EventKey"]
-
-    if EventKey:
-        Case.bind(EventKey, req["FromUserName"])
-
-    return ""
