@@ -10,7 +10,8 @@ from flask.templating import render_template
 from werkzeug.utils import redirect
 from flask_apscheduler import APScheduler
 
-from tracker.const import parse_date, EXTENT_DAYS, STAT_RESULT_CACHE, STAT_RESULT_CACHE_TIME, LocationDict, LocationList, \
+from tracker.const import parse_date, EXTENT_DAYS, STAT_RESULT_CACHE, STAT_RESULT_CACHE_TIME, LocationDict, \
+    LocationList, \
     CONFIG
 from tracker.crawler import query_ceac_state, query_ceac_state_safe
 from tracker.mongodb import Case, Record
@@ -21,6 +22,7 @@ scheduler = APScheduler()
 
 @scheduler.task('cron', id='do_job_1', minute="32")
 def crontab_task():
+    print("begin to cron")
     last_seem_expire = datetime.datetime.now() - datetime.timedelta(hours=3)
     case_list: List[Case] = Case.objects(expire_date__gte=datetime.datetime.today(), last_seem__lte=last_seem_expire, )
     soup = None
