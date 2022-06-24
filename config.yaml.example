@@ -2,7 +2,11 @@ debug: false
 domain: http://127.0.0.1:5000
 
 # Mongodb
-mongoDBUri: mongodb://localhost/CEACStateTracker
+mongo_host: 127.0.0.1
+mongo_port: 27017
+mongo_db: CEACStateTracker
+mongo_user:
+mongo_password:
 
 # Email
 email_user:
