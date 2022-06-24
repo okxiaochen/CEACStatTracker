@@ -4,7 +4,7 @@ EXTENT_DAYS = 120
 STAT_RESULT_CACHE = None
 STAT_RESULT_CACHE_TIME = None
 HOST = "https://track.moyu.ac.cn/detail/"
-
+DEBUG = False
 
 def parse_date(date_string):
     return datetime.datetime.strptime(date_string, "%d-%b-%Y").date()

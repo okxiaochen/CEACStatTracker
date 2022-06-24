@@ -1,6 +1,7 @@
 import datetime
 import json
 from typing import List
+import time
 
 import requests
 from flask import request, flash, abort, make_response, Blueprint
@@ -8,6 +9,7 @@ from flask.templating import render_template
 from werkzeug.utils import redirect
 from flask_apscheduler import APScheduler
 
+from app import const
 from app.const import parse_date, EXTENT_DAYS, STAT_RESULT_CACHE, STAT_RESULT_CACHE_TIME, LocationDict, LocationList
 from app.crawler import query_ceac_state, query_ceac_state_safe
 from app.mongodb import Case, Record
@@ -17,46 +19,33 @@ mod = Blueprint("router", __name__, template_folder="templates")
 scheduler = APScheduler()
 
 
-# @crontab.job(hour="*", minute="32")
-# def crontab_task():
-#     last_seem_expire = datetime.datetime.now() - datetime.timedelta(hours=3)
-#     case_list : List[Case] = Case.objects(expire_date__gte=datetime.datetime.today(), last_seem__lte=last_seem_expire)
-#     soup = None
-#     for case in case_list:
-#         result, soup = query_ceac_state_safe(case.location, case.case_no, soup)
-#         if isinstance(result, tuple):
-#             case.updateRecord(result)
+@scheduler.task('cron', id='do_job_1', minute="32")
+def crontab_task():
+    last_seem_expire = datetime.datetime.now() - datetime.timedelta(hours=3)
+    case_list: List[Case] = Case.objects(expire_date__gte=datetime.datetime.today(), last_seem__lte=last_seem_expire)
+    soup = None
+    for case in case_list:
+        result, soup = query_ceac_state_safe(case.location, case.case_no, soup)
+        if isinstance(result, tuple):
+            case.updateRecord(result)
+
 
 def divide_chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
 
-@scheduler.task('cron', id='do_job_1', minute="32")
-def crontab_task_remote():
-    # requests.get("http://127.0.0.1:5000/aa.html")
-    last_seem_expire = datetime.datetime.now() - datetime.timedelta(hours=6)
-    case_list: List[Case] = Case.objects(expire_date__gte=datetime.datetime.today(), last_seem__lte=last_seem_expire)
-    for chunk in divide_chunks(case_list, 50):
-        req_data = [(case.location, case.case_no) for case in chunk]
-        result_dict = query_ceac_state(req_data)
-        for case in chunk:
-            result = result_dict[case.case_no]
-            if isinstance(result, list):
-                case.updateRecord(result)
-
-
-# @mod.route("/task")
-# def crontab_task_debug():
-#     if not mod.debug:
-#         return "disabled"
-#     crontab_task_remote()
-#     return "ok"
+@mod.route("/task")
+def crontab_task_debug():
+    if not const.DEBUG:
+        return "disabled"
+    crontab_task()
+    return "ok"
 
 
 @mod.route("/import", methods=["GET", "POST"])
 def import_case():
-    if not mod.debug:
+    if not const.DEBUG:
         return "disabled"
     error_list = []
     if request.method == "POST":
